@@ -1,9 +1,13 @@
-import time, itertools, random
+import time
+import itertools
+import random
 import numpy as np
 import cvxpy as cp
+import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 from utils.cut import Cut
+
 
 class Show:
     def __init__(self, size, within, between, c_left, c_right):
@@ -30,6 +34,9 @@ class Show:
         :return: (nx.classes.graph.Graph) A graph drawn according to the Stochastic
             Block Model over the cut.
         """
+        file = "data/musae_git_edges.csv"
+        df = pd.read_csv(file, encoding="utf-8")
+
         graph = nx.Graph()
         graph.add_nodes_from(cut.vertices)
 

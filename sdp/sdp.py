@@ -6,11 +6,8 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append(".")
 from utils.cut import Cut
+from utils.show import Show
 
-LEFT_COLOR = 'blue'
-RIGHT_COLOR = 'green'
-# %matplotlib inline
-# %config InlineBackend.figure_format = 'retina'
 
 
 def goemans_williamson_weighted(graph):
@@ -155,19 +152,24 @@ def average_performance(graph_generator, algorithm, trials=50):
 
 
 if __name__ == "__main__":
-    GRAPH_SIZE = 20
+    LEFT_COLOR = 'red'
+    RIGHT_COLOR = 'skyblue'
+    GRAPH_SIZE = 50
     WITHIN = 0.25
     BETWEEN = 0.75
 
-    graph, cut = sbm_graph(GRAPH_SIZE, WITHIN, BETWEEN)
-    visualize_cut(graph, cut)
+    # graph, cut = sbm_graph(GRAPH_SIZE, WITHIN, BETWEEN)
+    # visualize_cut(graph, cut)
 
-    print('Planted Cut')
-    print('Expected Size:', GRAPH_SIZE * GRAPH_SIZE * BETWEEN / 4)
-    print('Real Size:', cut.evaluate_cut_size(graph))
+    # print('Planted Cut')
+    # print('Expected Size:', GRAPH_SIZE * GRAPH_SIZE * BETWEEN / 4)
+    # print('Real Size:', cut.evaluate_cut_size(graph))
 
-    sdp_cut = goemans_williamson_weighted(graph)
-    visualize_cut(graph, sdp_cut)
+    # sdp_cut = goemans_williamson_weighted(graph)
+    # visualize_cut(graph, sdp_cut)
+
+    visualization = Show(GRAPH_SIZE, WITHIN, BETWEEN, LEFT_COLOR, RIGHT_COLOR)
+    sdp_cut = goemans_williamson_weighted(visualization.graph)
 
     print('Goemans-Williamson Performance')
-    print('Cut size:', sdp_cut.evaluate_cut_size(graph))
+    print('Cut size:', sdp_cut.evaluate_cut_size(visualization.graph))

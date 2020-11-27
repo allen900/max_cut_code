@@ -43,6 +43,7 @@ class Cut:
         """
         self.validate_cut(graph)
         graph_weighted = nx.is_weighted(graph)
+        print("graph_weighted: ", graph_weighted)
         total, weight = 0, 1
 
         for edge in graph.edges():

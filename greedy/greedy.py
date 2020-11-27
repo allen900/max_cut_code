@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 # print(sys.path)
 from utils.cut import Cut
-from utils.show import Show
+from utils.graph import Graph
 
 
 def greedy_max_cut(graph):
@@ -24,6 +24,7 @@ def greedy_max_cut(graph):
         exactly one of the two sets.
     """
     cut = Cut(set(), set())
+    start_time = time.time()
     for vertex in graph.nodes:
         l_neighbors = sum((adj in cut.left) for adj in graph.neighbors(vertex))
         r_neighbors = sum((adj in cut.right) for adj in graph.neighbors(vertex))
@@ -31,19 +32,16 @@ def greedy_max_cut(graph):
             cut.left.add(vertex)
         else:
             cut.right.add(vertex)
-    return cut
+    duration = time.time() - start_time
+    
+    return cut, duration
 
 if __name__ == "__main__":
-    LEFT_COLOR = 'red'
-    RIGHT_COLOR = 'skyblue'
-    GRAPH_SIZE = 50
-    WITHIN = 0.25
-    BETWEEN = 0.75
+    graph = Graph("data/musae_git_edges.csv")
+    greedy_max_cut, duration = greedy_max_cut(graph.graph)
+    # graph.visualize_cut(random_cut)
+    # visualize_cut(graph.graph, random_cut) 
 
-    visualization = Show(GRAPH_SIZE, WITHIN, BETWEEN, LEFT_COLOR, RIGHT_COLOR)
-    greedy_max_cut = greedy_max_cut(visualization.graph)
-    # visualization.visualize_cut(random_cut)
-    # visualize_cut(visualization.graph, random_cut)
-
-    print('Random Cut Cost')
-    print('Cut size:', greedy_max_cut.evaluate_cut_size(visualization.graph))
+    print('Greedy Cut Cost')
+    print('Cut size:', greedy_max_cut.evaluate_cut_size(graph.graph))
+    print('Running time:', duration)

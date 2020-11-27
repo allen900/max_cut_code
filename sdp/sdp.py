@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append(".")
 from utils.cut import Cut
-from utils.show import Show
+from utils.graph import Graph
 
 
 
@@ -22,48 +22,20 @@ def goemans_williamson_weighted(graph):
         both sets contain all vertices in the graph, and each vertex is in
         exactly one of the two sets.
     """
+    # print(len(graph.nodes()))
     adjacency = nx.linalg.adjacency_matrix(graph)
     adjacency = adjacency.toarray()
+
+    start_time = time.time()
     solution = _solve_cut_vector_program(adjacency)
     sides = _recover_cut(solution)
 
     nodes = list(graph.nodes)
     left = {vertex for side, vertex in zip(sides, nodes) if side < 0}
     right = {vertex for side, vertex in zip(sides, nodes) if side >= 0}
-    return Cut(left, right)
+    duration = time.time() - start_time
 
-
-def stochastic_block_on_cut(cut, within, between):
-    """
-    Returns a graph drawn from the Stochastic Block Model, on the vertices
-    in CUT. Every edge between pairs of vertices in CUT.LEFT and CUT.RIGHT is
-    present independently with probability WITHIN; edges between sides are
-    similarly present independently with probability BETWEEN.
-    :param cut: (structures.cut.Cut) A cut which represents the vertices in
-        each of the two communities. Traditionally, the size of each side is
-        exactly half the total number of vertices in the graph, denoted n.
-    :param within: (float) The probability an edge exists between two vertices
-        in the same community, denoted p. Must be between 0 and 1 inclusive.
-    :param between: (float) The probability of each edge between two vertices
-        in different communities, denoted q. Must be between 0 and 1 inclusive.
-    :return: (nx.classes.graph.Graph) A graph drawn according to the Stochastic
-        Block Model over the cut.
-    """
-    graph = nx.Graph()
-    graph.add_nodes_from(cut.vertices)
-
-    for side in (cut.left, cut.right):
-        for start, end in itertools.combinations(side, 2):
-            if random.random() < within:
-                graph.add_edge(start, end)
-
-    for start in cut.left:
-        for end in cut.right:
-            if random.random() < between:
-                graph.add_edge(start, end)
-
-    return graph
-
+    return Cut(left, right), duration
 
 def _solve_cut_vector_program(adjacency):
     """
@@ -74,15 +46,21 @@ def _solve_cut_vector_program(adjacency):
         to each vertex to maximize the MAX-CUT semi-definite program (SDP)
         objective.
     """
+    print("Creating adjacency matrix...")
     size = len(adjacency)
     ones_matrix = np.ones((size, size))
     products = cp.Variable((size, size), PSD=True)
     cut_size = 0.5 * cp.sum(cp.multiply(adjacency, ones_matrix - products))
-
+    # print(cut_size)
+    print("Initializing cvx problem...")
     objective = cp.Maximize(cut_size)
     constraints = [cp.diag(products) == 1]
     problem = cp.Problem(objective, constraints)
+    for var in problem.variables():
+        print(var.shape[0])
+    print("Solving problem...")
     problem.solve()
+    print("Done!")
 
     eigenvalues, eigenvectors = np.linalg.eigh(products.value)
     eigenvalues = np.maximum(eigenvalues, 0)
@@ -106,31 +84,6 @@ def _recover_cut(solution):
     sides = np.sign(projections)
     return sides
 
-
-def sbm_graph(size, within, between):
-    half = int(size / 2)
-    left_side = np.random.choice(size, half, replace=False)
-    left_side = set(left_side)
-
-    cut = Cut(left_side, set())
-    for vertex in range(size):
-        if vertex not in left_side:
-            cut.right.add(vertex)
-
-    graph = stochastic_block_on_cut(cut, within, between)
-    return graph, cut
-
-
-def visualize_cut(graph, cut):
-    colors = []
-    for vertex in graph.nodes:
-        color = LEFT_COLOR if vertex in cut.left else RIGHT_COLOR
-        colors.append(color)
-    # %matplotlib inline
-    nx.draw(graph, node_color=colors)
-    plt.show()
-
-
 def average_performance(graph_generator, algorithm, trials=50):
     times, outputs = [], []
     for _ in range(trials):
@@ -152,12 +105,6 @@ def average_performance(graph_generator, algorithm, trials=50):
 
 
 if __name__ == "__main__":
-    LEFT_COLOR = 'red'
-    RIGHT_COLOR = 'skyblue'
-    GRAPH_SIZE = 50
-    WITHIN = 0.25
-    BETWEEN = 0.75
-
     # graph, cut = sbm_graph(GRAPH_SIZE, WITHIN, BETWEEN)
     # visualize_cut(graph, cut)
 
@@ -168,8 +115,9 @@ if __name__ == "__main__":
     # sdp_cut = goemans_williamson_weighted(graph)
     # visualize_cut(graph, sdp_cut)
 
-    visualization = Show(GRAPH_SIZE, WITHIN, BETWEEN, LEFT_COLOR, RIGHT_COLOR)
-    sdp_cut = goemans_williamson_weighted(visualization.graph)
+    graph = Graph("data/musae_git_edges.csv")
+    sdp_cut, duration = goemans_williamson_weighted(graph.graph)
 
     print('Goemans-Williamson Performance')
-    print('Cut size:', sdp_cut.evaluate_cut_size(visualization.graph))
+    print('Cut size:', sdp_cut.evaluate_cut_size(graph.graph))
+    print('Running time:', duration)

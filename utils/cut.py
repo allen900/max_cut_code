@@ -1,8 +1,6 @@
 import itertools
 import networkx as nx
 
-WEIGHT = 'weight'
-
 
 class Cut:
     """
@@ -45,6 +43,7 @@ class Cut:
         """
         self.validate_cut(graph)
         graph_weighted = nx.is_weighted(graph)
+        # print("graph_weighted: ", graph_weighted)
         total, weight = 0, 1
 
         for edge in graph.edges():
@@ -53,6 +52,7 @@ class Cut:
             reverse_order = start in self.right and end in self.left
             if forward_order or reverse_order:
                 if graph_weighted:
-                    weight = graph[start][end][WEIGHT]
+                    weight = graph[start][end]['weight']
                 total += weight
+
         return total

@@ -52,6 +52,7 @@ def qaoa(graph):
     for edge in graph.edges():
         k = edge[0]
         l = edge[1]
+        # print(k, l)
         QAOA.cp(-2*gamma, k, l)
         QAOA.p(gamma, k)
         QAOA.p(gamma, l)
@@ -65,7 +66,7 @@ def qaoa(graph):
     QAOA.measure(range(len(graph.nodes())), range(len(graph.nodes())))
 
     backend = Aer.get_backend("qasm_simulator")
-    shots = 1024
+    shots = 10000
 
     simulate = execute(QAOA, backend=backend, shots=shots)
     QAOA_results = simulate.result()

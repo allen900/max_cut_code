@@ -4,6 +4,7 @@ import random
 import numpy as np
 import networkx as nx
 import pandas as pd
+import Graph_Sampling
 import matplotlib.pyplot as plt
 from classical import randomized, greedy, sdp
 from qaoa import qaoa_2
@@ -26,84 +27,107 @@ quantum = qaoa_2.qaoa
 
 
 def get_graph_git():
-    df = pd.read_csv('data/musae_git_edges.csv', encoding='utf-8')
+    df = pd.read_csv('data/musae_git_edges.csv', header=None,
+                     skiprows=1, encoding='utf-8')
+    df.columns = ['a', 'b']
+    size = 25
+    G = nx.from_pandas_edgelist(df, 'a', 'b')
+    G.remove_edges_from(nx.selfloop_edges(G))
+    obj = Graph_Sampling.SRW_RWF_ISRW()
+    E = 0
+    while(E < size*2):
+        sampled_graph = obj.random_walk_induced_graph_sampling(G, size)
+        E = len(sampled_graph.edges())
 
-    # targeted random sampling
-    x = np.random.randint(1, 37471, size=25)
-    filtered = df[df.id_1.isin(x) & df.id_2.isin(x)]
-    print(filtered)
-
-    graph = nx.convert_matrix.from_pandas_edgelist(filtered, 'id_1', 'id_2')
-
-    return graph
+    return relabel(sampled_graph), size
 
 # for quantum and classic
 
 
 def get_graph_road():
-    df = pd.read_csv('data/roadNet-CA.txt', encoding='utf-8')
+    df = pd.read_csv('data/roadNet-CA.txt', sep='\t',
+                     header=None, skiprows=4, encoding='utf-8')
+    df.columns = ['a', 'b']
+    size = 25
+    G = nx.from_pandas_edgelist(df, 'a', 'b')
+    G.remove_edges_from(nx.selfloop_edges(G))
+    obj = Graph_Sampling.SRW_RWF_ISRW()
+    E = 0
+    while(E < 30):
+        print('processing new sample...')
+        sampled_graph = obj.random_walk_induced_graph_sampling(G, size)
+        E = len(sampled_graph.edges())
 
-    # targeted random sampling
-    x = np.random.randint(1, 37471, size=20)
-    filtered = df[df.id_1.isin(x) & df.id_2.isin(x)]
-    print(filtered)
-
-    graph = nx.convert_matrix.from_pandas_edgelist(filtered, 'id_1', 'id_2')
-
-    return graph
+    return relabel(sampled_graph), size
 
 # qaoa & classic
 
 
 def get_graph_eia():
-    df = pd.read_csv(
-        'data/EIA930_INTERCHANGE_2020_Jan_Jun.csv', encoding='utf-8')
+    df = pd.read_csv('data/EIA930_INTERCHANGE_2020_Jan_Jun.csv', encoding='utf-8')
+    df = df.loc[df['Data Date']=='01/10/2020']
+    df = df.filter(items=['Balancing Authority', 'Directly Interconnected Balancing Authority'])
+    size = 25
+    G = nx.from_pandas_edgelist(df, 'Balancing Authority', 'Directly Interconnected Balancing Authority')
+    G.remove_edges_from(nx.selfloop_edges(G))
+    obj = Graph_Sampling.SRW_RWF_ISRW()
+    E = 0
+    while(E < size*2):
+        sampled_graph = obj.random_walk_induced_graph_sampling(G, size)
+        E = len(sampled_graph.edges())
 
-    # targeted random sampling
-    x = np.random.randint(1, 37471, size=20)
-    filtered = df[df.id_1.isin(x) & df.id_2.isin(x)]
-    print(filtered)
+    return relabel(sampled_graph), size
 
-    graph = nx.convert_matrix.from_pandas_edgelist(filtered, 'id_1', 'id_2')
-
-    return graph
-
-# classic
+# classic & q
 
 
 def get_graph_as():
     df = pd.read_csv('data/as20000102.txt', sep='\t',
                      header=None, skiprows=4, encoding='utf-8')
     df.columns = ['a', 'b']
-    # targeted random sampling
-    # x = np.random.randint(1, 37471, size=20)
-    # filtered = df[df.id_1.isin(x) & df.id_2.isin(x)]
-    # print(filtered)
+    size = 25
+    G = nx.from_pandas_edgelist(df, 'a', 'b')
+    G.remove_edges_from(nx.selfloop_edges(G))
+    obj = Graph_Sampling.SRW_RWF_ISRW()
+    E = 0
+    while(E < size*2):
+        print('processing new sample...')
+        sampled_graph = obj.random_walk_induced_graph_sampling(G, size)
+        E = len(sampled_graph.edges())
 
-    graph = nx.convert_matrix.from_pandas_edgelist(df, 'a', 'b')
-
-    return graph
+    return relabel(sampled_graph), size
 
 
-def average_performance(algorithm, trials=1):
+def relabel(G):
+    x = sorted(G)
+    mapping = {}
+    for i in range(len(x)):
+        mapping[x[i]] = i
+    H = nx.relabel_nodes(G, mapping)
+    print(sorted(H))
+    nx.draw(H, with_labels=True)
+    plt.show()
+    return H
+
+
+def average_performance(algorithm, G, trials=1):
     times, outputs = [], []
     for _ in range(trials):
         # graph = graph_generator()
-        graph = get_graph_as()
+        # graph = get_graph_as()
 
         # start = time.clock()
-        result, d = algorithm(graph)
+        result, d = algorithm(G)
         # end = time.clock()
         # elapsed = end - start
 
-        times.append(d)
         if algorithm == quantum:
             outputs.append(result)
         else:
-            outputs.append(result.evaluate_cut_size(graph))
+            outputs.append(result.evaluate_cut_size(G))
+        times.append(d)
 
     return {
-        'trials': trials,
         'time': np.mean(times),
         'output': np.mean(outputs)
     }
@@ -114,12 +138,14 @@ random_results = []
 greedy_results = []
 sdp_results = []
 qaoa_results = []
-GRAPH_SIZE = 6474
+
+
+G, GRAPH_SIZE = get_graph_eia()
 # for size in GRAPH_SIZES:
-random_results.append(average_performance(random_cut_alg))
-greedy_results.append(average_performance(greedy_cut_alg))
-# sdp_results.append(average_performance(sdp_cut_alg))
-# qaoa_results.append(average_performance(quantum))
+random_results.append(average_performance(random_cut_alg, G))
+greedy_results.append(average_performance(greedy_cut_alg, G))
+sdp_results.append(average_performance(sdp_cut_alg, G))
+qaoa_results.append(average_performance(quantum, G))
 
 # PLOTTING_OPTIONS = {
 #     'title': 'Cut Size vs Graph Size',
@@ -144,21 +170,27 @@ greedy_results.append(average_performance(greedy_cut_alg))
 rows = []
 # for pos in range(len(GRAPH_SIZES)):
 rows.append([
-    GRAPH_SIZE,
-    # random_results[0]['output'],
     random_results[0]['output'],
-    # sdp_results[pos]['output'],
-    # qaoa_results[pos]['output'],
-    # upper_bounds[pos]['output'],
     random_results[0]['time']
-],
-    [
+])
+
+rows.append([
     greedy_results[0]['output'],
     greedy_results[0]['time']
+])
+
+rows.append([
+    sdp_results[0]['output'],
+    sdp_results[0]['time']
+])
+
+rows.append([
+    qaoa_results[0]['output'],
+    qaoa_results[0]['time']
 ])
 
 table = pd.DataFrame(rows)
 # table.columns = ['Graph Size', 'Random', 'Greedy', 'SDP','Upper_bounds']
 table.columns = ['cut', 'time']
-table.rows = ['Random', 'Greedy']
+table.rows = ['Random', 'Greedy', 'SDP', 'QAOA']
 print(table)

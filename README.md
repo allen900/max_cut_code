@@ -13,3 +13,5 @@ The source code of QC seminar series.
 * **data** folder contains 4 types of graph, description is in the slides
 
 * **utils** folder contains code to generate a random graph or real graph which based on data folder, parameter settings are available
+
+* **maxcut.zip** is the slides, latex code
